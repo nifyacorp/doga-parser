@@ -4,7 +4,6 @@ import { logger } from './utils/logger.js';
 import { scrapeWebsite } from './services/scraper.js';
 import { processText } from './services/textProcessor.js';
 import { analyzeWithOpenAI } from './services/openai.js';
-import { scrapeWebsite } from './services/scraper.js';
 import { randomUUID } from 'crypto';
 
 const app = express();
@@ -34,34 +33,44 @@ app.use(express.json());
 app.post('/analyze-text', async (req, res) => {
   const reqId = req.id;
   try {
-    const { text } = req.body;
+    const { texts } = req.body;
 
-    if (!text) {
-      logger.debug({ reqId }, 'Missing text in request body');
-      return res.status(400).json({ error: 'Text prompt is required' });
+    if (!texts || !Array.isArray(texts) || texts.length === 0) {
+      logger.debug({ reqId }, 'Missing or invalid texts array in request body');
+      return res.status(400).json({ error: 'Array of text prompts is required' });
     }
 
-    // Step 1: Process the input text
-    logger.debug({ reqId, text }, 'Processing input text');
-    const cleanText = processText(text);
-    logger.debug({ reqId, cleanText }, 'Text processed');
-
-    // Step 2: Fetch and parse DOGA RSS feed
+    // Step 1: Fetch and parse DOGA RSS feed (do this once for all prompts)
     logger.debug({ reqId, url: dogaUrl }, 'Fetching DOGA RSS feed');
     const dogaContent = await scrapeWebsite(dogaUrl);
     logger.debug({ reqId, contentLength: dogaContent.length }, 'DOGA content fetched');
 
-    // Step 3: Combine user input with DOGA content
-    logger.debug({ reqId }, 'Combining input with DOGA content');
-    const combinedText = `User Query: ${cleanText}\n\nDOGA Content: ${dogaContent}`;
-    logger.debug({ reqId, combinedLength: combinedText.length }, 'Content combined');
+    // Step 2: Process each text prompt
+    logger.debug({ reqId, promptCount: texts.length }, 'Processing multiple prompts');
+    const results = await Promise.all(texts.map(async (text, index) => {
+      // Process the input text
+      logger.debug({ reqId, promptIndex: index, text }, 'Processing input text');
+      const cleanText = processText(text);
+      logger.debug({ reqId, promptIndex: index, cleanText }, 'Text processed');
 
-    // Step 4: Analyze with OpenAI
-    logger.debug({ reqId }, 'Starting OpenAI analysis');
-    const analysis = await analyzeWithOpenAI(combinedText);
+      // Combine user input with DOGA content
+      logger.debug({ reqId, promptIndex: index }, 'Combining input with DOGA content');
+      const combinedText = `User Query: ${cleanText}\n\nDOGA Content: ${dogaContent}`;
+      logger.debug({ reqId, promptIndex: index, combinedLength: combinedText.length }, 'Content combined');
 
-    logger.debug({ reqId, analysis }, 'Analysis completed successfully');
-    res.json({ analysis });
+      // Analyze with OpenAI
+      logger.debug({ reqId, promptIndex: index }, 'Starting OpenAI analysis');
+      const analysis = await analyzeWithOpenAI(combinedText, reqId);
+      logger.debug({ reqId, promptIndex: index }, 'Analysis completed');
+
+      return {
+        prompt: text,
+        analysis
+      };
+    }));
+
+    logger.debug({ reqId, resultCount: results.length }, 'All analyses completed successfully');
+    res.json({ results });
   } catch (error) {
     logger.error({ 
       reqId,

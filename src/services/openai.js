@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger.js';
-import { getSecret } from '../utils/secrets.js';
 
 let openai;
 
@@ -8,7 +7,10 @@ export async function analyzeWithOpenAI(text, reqId) {
   try {
     if (!openai) {
       logger.debug({ reqId }, 'Initializing OpenAI client');
-      const apiKey = await getSecret('OPENAI_API_KEY');
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY environment variable is not set');
+      }
       openai = new OpenAI({ apiKey });
       logger.debug({ reqId }, 'OpenAI client initialized');
     }

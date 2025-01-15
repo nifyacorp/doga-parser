@@ -104,13 +104,17 @@ src/
 
 `POST /analyze-text`
 
-Analyzes a text query against the latest DOGA content.
+Analyzes multiple text queries against the latest DOGA content in parallel.
 
 #### Request Body
 
 ```json
 {
-  "text": "Find all resolutions about public employment"
+  "texts": [
+    "Find all resolutions about public employment",
+    "List announcements about environmental grants",
+    "Show orders related to education"
+  ]
 }
 ```
 
@@ -118,9 +122,20 @@ Analyzes a text query against the latest DOGA content.
 
 ```json
 {
-  "analysis": {
-    // OpenAI analysis response
-  }
+  "results": [
+    {
+      "prompt": "Find all resolutions about public employment",
+      "analysis": "..."
+    },
+    {
+      "prompt": "List announcements about environmental grants",
+      "analysis": "..."
+    },
+    {
+      "prompt": "Show orders related to education",
+      "analysis": "..."
+    }
+  ]
 }
 ```
 
@@ -128,9 +143,17 @@ Analyzes a text query against the latest DOGA content.
 
 ```json
 {
-  "error": "Error message"
+  "error": "Array of text prompts is required"
 }
 ```
+
+#### Features
+
+- Accepts multiple prompts in a single request
+- Processes all prompts in parallel for better performance
+- Returns results paired with their original prompts
+- Fetches DOGA content once per request to minimize external calls
+- Comprehensive error handling and validation
 
 ## Development
 

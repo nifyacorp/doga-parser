@@ -4,13 +4,16 @@ import { getSecret } from '../utils/secrets.js';
 
 let openai;
 
-export async function analyzeWithOpenAI(text) {
+export async function analyzeWithOpenAI(text, reqId) {
   try {
     if (!openai) {
+      logger.debug({ reqId }, 'Initializing OpenAI client');
       const apiKey = await getSecret('OPENAI_API_KEY');
       openai = new OpenAI({ apiKey });
+      logger.debug({ reqId }, 'OpenAI client initialized');
     }
 
+    logger.debug({ reqId, textLength: text.length }, 'Sending request to OpenAI');
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
@@ -25,10 +28,22 @@ export async function analyzeWithOpenAI(text) {
       ],
       max_tokens: 500
     });
+    logger.debug({ 
+      reqId,
+      completionTokens: response.usage?.completion_tokens,
+      promptTokens: response.usage?.prompt_tokens,
+      totalTokens: response.usage?.total_tokens
+    }, 'OpenAI response received');
 
     return response.choices[0].message.content;
   } catch (error) {
-    logger.error('Error analyzing with OpenAI', { error: error.message });
+    logger.error({ 
+      reqId,
+      error: error.message,
+      stack: error.stack,
+      code: error.code,
+      statusCode: error.status
+    }, 'Error analyzing with OpenAI');
     throw new Error(`Failed to analyze with OpenAI: ${error.message}`);
   }
 }

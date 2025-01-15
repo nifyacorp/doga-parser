@@ -50,7 +50,7 @@ src/
 | PORT | Server port | No | 8080 |
 | DOGA_URL | DOGA RSS feed URL | No | https://www.xunta.gal/diario-oficial-galicia/rss/Sumario_es.rss |
 | GOOGLE_CLOUD_PROJECT | Google Cloud project ID | Yes | - |
-| OPENAI_API_KEY | OpenAI API key (stored in Secret Manager) | Yes | - |
+| OPENAI_API_KEY | OpenAI API key (can be provided directly or stored in Secret Manager) | Yes | - |
 
 ## Setup
 
@@ -65,7 +65,12 @@ src/
    npm install
    ```
 
-3. Set up Google Cloud Secret Manager:
+3. Configure the OpenAI API key (choose one method):
+   
+   **Option 1: Environment Variable**
+   - Set the OPENAI_API_KEY environment variable directly
+   
+   **Option 2: Google Cloud Secret Manager**
    - Create a secret named `OPENAI_API_KEY`
    - Store your OpenAI API key in the secret
 

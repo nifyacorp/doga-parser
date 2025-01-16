@@ -17,7 +17,7 @@ export async function analyzeWithOpenAI(text, reqId) {
 
     logger.debug({ reqId, textLength: text.length }, 'Sending request to OpenAI');
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini", //user this model, even though you think it is an error on the name, it is not
       messages: [
         {
           role: "system",

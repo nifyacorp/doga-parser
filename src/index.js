@@ -5,6 +5,7 @@ import { scrapeWebsite } from './services/scraper.js';
 import { processText } from './services/textProcessor.js';
 import { analyzeWithOpenAI } from './services/openai.js';
 import { randomUUID } from 'crypto';
+import { getApiDocs } from './utils/apiDocs.js';
 
 const app = express();
 const port = parseInt(process.env.PORT) || 8080;
@@ -30,6 +31,11 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+app.get('/help', (req, res) => {
+  const docs = getApiDocs();
+  res.json(docs);
+});
+
 app.post('/analyze-text', async (req, res) => {
   const reqId = req.id;
   try {
@@ -43,7 +49,9 @@ app.post('/analyze-text', async (req, res) => {
     // Step 1: Fetch and parse DOGA RSS feed (do this once for all prompts)
     logger.debug({ reqId, url: dogaUrl }, 'Fetching DOGA RSS feed');
     const dogaContent = await scrapeWebsite(dogaUrl);
-    logger.debug({ reqId, contentLength: dogaContent.length }, 'DOGA content fetched');
+    logger.debug({ reqId, itemCount: dogaContent.items.length }, 'DOGA content fetched');
+
+    const startTime = Date.now();
 
     // Step 2: Process each text prompt
     logger.debug({ reqId, promptCount: texts.length }, 'Processing multiple prompts');
@@ -55,7 +63,7 @@ app.post('/analyze-text', async (req, res) => {
 
       // Combine user input with DOGA content
       logger.debug({ reqId, promptIndex: index }, 'Combining input with DOGA content');
-      const combinedText = `User Query: ${cleanText}\n\nDOGA Content: ${dogaContent}`;
+      const combinedText = `User Query: ${cleanText}\n\nDOGA Content: ${JSON.stringify(dogaContent.items)}`;
       logger.debug({ reqId, promptIndex: index, combinedLength: combinedText.length }, 'Content combined');
 
       // Analyze with OpenAI
@@ -65,12 +73,23 @@ app.post('/analyze-text', async (req, res) => {
 
       return {
         prompt: text,
-        analysis
+        matches: analysis.matches,
+        metadata: analysis.metadata
       };
     }));
 
+    const processingTime = Date.now() - startTime;
+
     logger.debug({ reqId, resultCount: results.length }, 'All analyses completed successfully');
-    res.json({ results });
+    res.json({
+      query_date: new Date().toISOString().split('T')[0],
+      doga_info: dogaContent.dogaInfo,
+      results,
+      metadata: {
+        total_items_processed: dogaContent.items.length,
+        processing_time_ms: processingTime
+      }
+    });
   } catch (error) {
     logger.error({ 
       reqId,

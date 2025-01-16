@@ -7,9 +7,10 @@ A Node.js microservice that analyzes content from the Diario Oficial de Galicia 
 - Real-time DOGA RSS feed processing
 - Natural language query processing
 - AI-powered content analysis using GPT-4
-- Structured JSON responses
+- Structured JSON responses with detailed metadata
 - Cloud-native design for Google Cloud Run
 - Comprehensive logging with Pino
+- Interactive API documentation via /help endpoint
 
 ## Architecture
 
@@ -24,7 +25,8 @@ src/
 │   └── openai.js      # OpenAI integration
 └── utils/
     ├── logger.js      # Logging utility
-    └── secrets.js     # Secret management
+    ├── secrets.js     # Secret management
+    └── apiDocs.js     # API documentation
 ```
 
 ### Key Components
@@ -35,6 +37,7 @@ src/
 - **OpenAI Analyzer**: Processes content using GPT-4
 - **Secret Manager**: Securely handles API keys and credentials
 - **Logger**: Structured logging for Cloud Run
+- **API Documentation**: Interactive endpoint documentation
 
 ## Prerequisites
 
@@ -100,11 +103,26 @@ src/
 
 ## API Usage
 
+### Documentation Endpoint
+
+Get API documentation and examples:
+
+```bash
+GET /help
+```
+
+Returns comprehensive API documentation including:
+- Available endpoints
+- Request/response structures
+- Example payloads
+- Error formats
+
 ### Analyze Text Endpoint
+
 
 `POST /analyze-text`
 
-Analyzes multiple text queries against the latest DOGA content in parallel.
+Analyzes multiple text queries against the latest DOGA content in parallel, returning structured results.
 
 #### Request Body
 
@@ -120,24 +138,86 @@ Analyzes multiple text queries against the latest DOGA content in parallel.
 
 #### Response
 
+The endpoint returns a structured JSON response with the following format:
+
 ```json
 {
-  "results": [
-    {
-      "prompt": "Find all resolutions about public employment",
-      "analysis": "..."
-    },
-    {
-      "prompt": "List announcements about environmental grants",
-      "analysis": "..."
-    },
-    {
-      "prompt": "Show orders related to education",
-      "analysis": "..."
+  "query_date": "2025-01-16",
+  "doga_info": {
+    "issue_number": "10",
+    "publication_date": "2025-01-16",
+    "source_url": "https://www.xunta.gal/diario-oficial-galicia"
+  },
+  "doga_info": {
+    "issue_number": "10",
+    "publication_date": "2025-01-16",
+    "source_url": "https://www.xunta.gal/diario-oficial-galicia"
+  },
+  "results": [{
+    "prompt": "Find all resolutions about public employment",
+    "matches": [{
+      "document_type": "RESOLUTION",
+      "issuing_body": "Servicio Gallego de Salud",
+      "title": "Full document title",
+      "dates": {
+        "document_date": "2024-12-30",
+        "document_date": "2024-12-30",
+        "publication_date": "2025-01-16"
+      },
+      "procedure_code": "ED531F",
+      "category": "III. Otras disposiciones",
+      "subcategory": "Servicio Gallego de Salud",
+      "url": "https://www.xunta.gal/dog/...",
+      "relevance_score": 0.95,
+      "summary": "Brief description of the document content",
+    }],
+    "metadata": {
+      "match_count": 1,
+      "max_relevance": 0.95
+    }],
+    "metadata": {
+      "match_count": 1,
+      "max_relevance": 0.95
     }
-  ]
+  }],
+  "metadata": {
+    "total_items_processed": 45,
+    "processing_time_ms": 1234
+  }
 }
 ```
+
+
+#### Response Fields
+
+- `query_date`: Date when the query was processed
+- `doga_info`: Information about the DOGA issue being analyzed
+  - `issue_number`: DOGA issue number
+  - `publication_date`: Publication date
+  - `source_url`: URL of the DOGA website
+- `results`: Array of analysis results for each prompt
+- `results`: Array of analysis results for each prompt
+  - `prompt`: Original search query
+  - `matches`: Array of matching documents
+    - `document_type`: Type of document (ORDER, RESOLUTION, ANNOUNCEMENT, etc.)
+    - `issuing_body`: Organization that issued the document
+    - `title`: Complete document title
+    - `dates`: Document dates
+    - `procedure_code`: Official procedure code if available
+    - `category`: Main document category
+    - `subcategory`: Document subcategory
+    - `url`: Direct link to the document
+    - `relevance_score`: Match relevance (0-1)
+    - `summary`: Brief content summary
+  - `metadata`: Match-specific metadata
+    - `match_count`: Number of matches found
+    - `max_relevance`: Highest relevance score
+  - `metadata`: Match-specific metadata
+    - `match_count`: Number of matches found
+    - `max_relevance`: Highest relevance score
+- `metadata`: Query execution metadata
+  - `total_items_processed`: Number of DOGA items analyzed
+  - `processing_time_ms`: Total processing time in milliseconds
 
 #### Error Response
 
@@ -149,11 +229,13 @@ Analyzes multiple text queries against the latest DOGA content in parallel.
 
 #### Features
 
-- Accepts multiple prompts in a single request
-- Processes all prompts in parallel for better performance
-- Returns results paired with their original prompts
-- Fetches DOGA content once per request to minimize external calls
-- Comprehensive error handling and validation
+- Multiple prompts in a single request
+- Parallel processing for better performance
+- Structured JSON responses with detailed metadata
+- Relevance scoring for matches
+- Document categorization and summarization
+- Processing time tracking
+- Comprehensive error handling
 
 ## Development
 

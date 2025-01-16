@@ -17,19 +17,31 @@ export async function scrapeWebsite(url, reqId) {
     const xmlData = parser.parse(response.data);
     logger.debug({ reqId }, 'XML parsing completed');
 
-    // Extract items from RSS feed
-    const items = xmlData.rss.channel.item;
+    const channel = xmlData.rss.channel;
+    const items = channel.item;
+    const dogaInfo = {
+      issue_number: channel.description.match(/Diario núm, (\d+)/)?.[1] || '',
+      publication_date: formatDate(channel.pubDate),
+      source_url: channel.link
+    };
+
     logger.debug({ reqId, itemCount: items.length }, 'RSS items extracted');
 
     const processedItems = items.map(item => ({
       title: item.title,
       description: item.description,
       link: item.link,
-      pubDate: item.pubDate
+      pubDate: formatDate(item.pubDate),
+      category: item.description.split('</br>')[0].trim(),
+      subcategory: item.description.split('</br>')[1].trim()
     }));
+
     logger.debug({ reqId, processedCount: processedItems.length }, 'Items processed');
     
-    return JSON.stringify(processedItems, null, 2);
+    return {
+      items: processedItems,
+      dogaInfo
+    };
   } catch (error) {
     logger.error({ 
       reqId,

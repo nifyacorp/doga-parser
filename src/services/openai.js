@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger.js';
+import { formatDate } from '../utils/dateFormatter.js';
 
 let openai;
 
@@ -21,7 +22,7 @@ export async function analyzeWithOpenAI(text, reqId) {
       messages: [
         {
           role: "system",
-          content: "You are a DOGA (Diario Oficial de Galicia) analysis assistant. Analyze the provided RSS items and extract key information about announcements, resolutions, and other official communications. Focus on identifying: 1) Type of document (order, resolution, announcement) 2) Issuing body 3) Main subject matter 4) Key dates 5) Relevant procedure codes if present."
+          content: "You are a DOGA (Diario Oficial de Galicia) analysis assistant. Analyze the provided RSS items and extract key information about announcements, resolutions, and other official communications. Return a structured JSON response with matches that include: document_type, issuing_body, title, dates, procedure_code, category, subcategory, url, and a relevance score (0-1). Provide a concise summary for each match."
         },
         {
           role: "user",
@@ -37,7 +38,9 @@ export async function analyzeWithOpenAI(text, reqId) {
       totalTokens: response.usage?.total_tokens
     }, 'OpenAI response received');
 
-    return response.choices[0].message.content;
+    // Parse and structure the response
+    const aiResponse = JSON.parse(response.choices[0].message.content);
+    return aiResponse;
   } catch (error) {
     logger.error({ 
       reqId,

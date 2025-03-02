@@ -39,12 +39,26 @@ app.get('/help', (req, res) => {
 app.post('/analyze-text', async (req, res) => {
   const reqId = req.id;
   try {
-    const { texts } = req.body;
+    // Match the BOE parser expected format
+    const { texts, metadata = {}, limit = 5, date } = req.body;
 
     if (!texts || !Array.isArray(texts) || texts.length === 0) {
       logger.debug({ reqId }, 'Missing or invalid texts array in request body');
       return res.status(400).json({ error: 'Array of text prompts is required' });
     }
+
+    // Extract user_id and subscription_id from metadata like BOE parser
+    const user_id = metadata.user_id || 'unknown-user';
+    const subscription_id = metadata.subscription_id || 'unknown-subscription';
+    
+    logger.debug({ 
+      reqId, 
+      user_id, 
+      subscription_id, 
+      textCount: texts.length,
+      limit,
+      date
+    }, 'Processing DOGA analysis request');
 
     // Step 1: Fetch and parse DOGA RSS feed (do this once for all prompts)
     logger.debug({ reqId, url: dogaUrl }, 'Fetching DOGA RSS feed');
@@ -71,21 +85,33 @@ app.post('/analyze-text', async (req, res) => {
       const analysis = await analyzeWithOpenAI(combinedText, reqId);
       logger.debug({ reqId, promptIndex: index }, 'Analysis completed');
 
+      // Limit the number of matches if specified
+      const matches = analysis.matches || [];
+      const limitedMatches = limit > 0 ? matches.slice(0, limit) : matches;
+
       return {
         prompt: text,
-        matches: analysis.matches,
-        metadata: analysis.metadata
+        matches: limitedMatches,
+        metadata: {
+          ...analysis.metadata,
+          user_id,
+          subscription_id
+        }
       };
     }));
 
     const processingTime = Date.now() - startTime;
 
     logger.debug({ reqId, resultCount: results.length }, 'All analyses completed successfully');
+    
+    // Format the response to match BOE parser format
     res.json({
-      query_date: new Date().toISOString().split('T')[0],
+      query_date: date || new Date().toISOString().split('T')[0],
       doga_info: dogaContent.dogaInfo,
       results,
       metadata: {
+        user_id,
+        subscription_id,
         total_items_processed: dogaContent.items.length,
         processing_time_ms: processingTime
       }
@@ -97,7 +123,11 @@ app.post('/analyze-text', async (req, res) => {
       stack: error.stack,
       code: error.code
     }, 'Error processing text request');
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      status: 'error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
